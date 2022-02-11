@@ -1,7 +1,7 @@
 ﻿using Stripe;
 using Stripe.Checkout;
 
-var stripeApiKey = Environment.GetEnvironmentVariable("StripeSeasdasdcretApiKey");
+var stripeApiKey = Environment.GetEnvironmentVariable("StripeSecretApiKey");
 if (String.IsNullOrEmpty(stripeApiKey)) {
     Console.WriteLine("Please supply a Stripe Secret API key:");
     stripeApiKey = Console.ReadLine();
@@ -17,23 +17,12 @@ var lineItems = new List<SessionLineItemOptions> {
 
 var fulfillmentDate = new DateTimeOffset(new DateTime(2022, 3, 4));
 
-// If you use THIS chunk of code, it works just fine:
-// var intent = new SessionPaymentIntentDataOptions {
-//     Description = $"Test Order",
-//     ReceiptEmail = "dylan@ndcconferences.com"
-// };
-
-// If you use THIS chunk of code, Stripe returns an HTTP 400 Bad Request:
-// Unhandled exception. Stripe.StripeException: Received unknown parameter: payment_intent_data[fulfillment_date]
-//    at Stripe.StripeClient.ProcessResponse[T](StripeResponse response) in D:\Projects\github\dylanbeattie\stripe-dotnet\src\Stripe.net\Infrastructure\Public\StripeClient.cs:line 153
-
-var intent = new SessionPaymentIntentDataWithFulfillmentDateOptions {
+var intent = new SessionPaymentIntentDataOptions {
     Description = $"Test Order",
-    ReceiptEmail = "dylan@ndcconferences.com",
-    FulfillmentDateTimeOffset = fulfillmentDate
+    ReceiptEmail = "dylan@ndcconferences.com"
 };
 
-var options = new SessionCreateOptions {
+var sessionCreateOptions = new SessionCreateOptions {
     PaymentIntentData = intent,
     CustomerEmail = "customer@example.com",
     ClientReferenceId = Guid.NewGuid().ToString(),
@@ -44,6 +33,16 @@ var options = new SessionCreateOptions {
 };
 
 var sessionService = new SessionService();
-var session = sessionService.Create(options);
-Console.WriteLine("Session created.");
-Console.WriteLine($"Payment URL: {session.Url}");
+var createdSession = sessionService.Create(sessionCreateOptions);
+Console.WriteLine($"Session created! Session ID is {createdSession.Id}");
+Console.WriteLine($"Payment URL: {createdSession.Url}");
+Console.WriteLine($"Calling SessionService.Get({createdSession.Id}");
+var retrievedSession = sessionService.Get(createdSession.Id);
+
+var paymentIntentService = new PaymentIntentService();
+var paymentIntentId = retrievedSession.PaymentIntentId;
+
+var paymentIntentUpdateOptions = new PaymentIntentWithFulfillmentDateUpdateOptions {
+    FulfillmentDateTimeOffset = fulfillmentDate
+};
+paymentIntentService.Update(paymentIntentId, paymentIntentUpdateOptions);
